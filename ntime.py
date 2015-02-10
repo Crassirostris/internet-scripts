@@ -101,12 +101,18 @@ def get_args_parser():
     parser.add_argument("-t", "--timeout", help="Communication timeout in seconds (default 1)", default=1, type=int)
     parser.add_argument("-a", "--attempts", help="Maximum communication attempts (default 1)", default=1, type=int)
     parser.add_argument("-f", "--file", help="Use source as filename of NTP packet dump", action='store_true')
+    parser.add_argument("-d", "--no-debug", help="Do not show debug info", action='store_false', default=True)
     return parser
 
 
 def get_address(source):
     chunks = source.split(':')
     return chunks[0], int(chunks[1]) if len(chunks) > 1 else NTP_PORT
+
+
+def debug(args, message):
+    if args.no_debug:
+        print(message)
 
 
 def get_raw_packet(args):
@@ -120,7 +126,7 @@ def get_raw_packet(args):
             sock.sendto(request, address)
             if select([sock], [], [], args.timeout)[0]:
                 return sock.recvfrom(DEFAULT_BUFFER_SIZE)[0]
-            print("Attempt %d failed" % attempt)
+        debug(args, "Attempt %d failed" % attempt)
 
 
 if __name__ == "__main__":
@@ -130,4 +136,4 @@ if __name__ == "__main__":
     if raw_packet:
         print(Packet.from_binary(raw_packet))
     else:
-        print("Failed to receive packet")
+        debug(args, "Failed to receive packet")
