@@ -34,6 +34,20 @@ def from_ntp_short_bytes(value):
     return Decimal(value) / (2 ** 16)
 
 
+def hexdump(value, size=4):
+    if isinstance(value, bytes):
+        return " ".join(["%02X" % e for e in value])
+    if isinstance(value, int):
+        if size == 1:
+            return hexdump(pack('>B', value))
+        if size == 2:
+            return hexdump(pack('>H', value))
+        if size == 4:
+            return hexdump(pack('>I', value))
+        if size == 8:
+            return hexdump(pack('>Q', value))
+
+
 class Packet(object):
     def __init__(self, leap=0, version=NTP_CURRENT_VERSION, mode=3, stratum=16, poll=0, precision=0, root_delay=0,
                  root_dispersion=0, ref_id=b'', ref_time=0, origin=0, receive=0,
@@ -41,6 +55,7 @@ class Packet(object):
         self.leap = leap
         self.version = version
         self.mode = mode
+        self.options = (self.leap << 6) | (self.version << 3) | self.mode
         self.stratum = stratum
         self.poll = poll
         self.precision = precision
@@ -55,7 +70,7 @@ class Packet(object):
     @classmethod
     def from_binary(cls, data):
         options, stratum, poll, precision, root_delay, root_dispersion, \
-            ref_id, ref_time, origin, receive, transmit \
+        ref_id, ref_time, origin, receive, transmit \
             = unpack(NTP_HEADER_FORMAT, data[:NTP_HEADER_LENGTH])
         leap, version, mode = options >> 6, ((options >> 3) & 0x7), options & 0x7
         return Packet(leap, version, mode, stratum, poll, precision, root_delay, root_dispersion, ref_id, ref_time,
@@ -68,7 +83,7 @@ class Packet(object):
 
     def to_binary(self):
         return pack(NTP_HEADER_FORMAT,
-                    (self.leap << 6) | (self.version << 3) | self.mode,
+                    self.options,
                     self.stratum, self.poll, self.precision,
                     self.root_delay,
                     self.root_dispersion,
@@ -79,19 +94,20 @@ class Packet(object):
                     self.transmit)
 
     def __str__(self):
-        return "Version: %d\n" % self.version + \
-            "Leap: %d\n" % self.leap + \
-            "Mode: %d\n" % self.mode + \
-            "Stratum: %d\n" % self.stratum + \
-            "Poll: %lf (%d)\n" % (2 ** (-self.poll), self.poll) + \
-            "Precision: %lf (%d)\n" % (2 ** (-self.precision), self.precision) + \
-            "Root delay: %lf\n" % from_ntp_short_bytes(self.root_delay) + \
-            "Root dispersion: %lf\n" % from_ntp_short_bytes(self.root_dispersion) + \
-            "Reference ID: %s\n" % IPv4Address(self.ref_id) + \
-            "Reference Timestamp: %s\n" % utc_to_string(ntp_bytes_to_utc(self.ref_time)) + \
-            "Origin Timestamp: %s\n" % utc_to_string(ntp_bytes_to_utc(self.origin)) + \
-            "Receive Timestamp: %s\n" % utc_to_string(ntp_bytes_to_utc(self.receive)) + \
-            "Transmit Timestamp: %s\n" % utc_to_string(ntp_bytes_to_utc(self.transmit))
+        return \
+            "%-30s Version: %d\n" % (hexdump(self.options, 1), self.version) + \
+            "%-30s Leap: %d\n" % ("", self.leap) + \
+            "%-30s Mode: %d\n" % ("", self.mode) + \
+            "%-30s Stratum: %d\n" % (hexdump(self.stratum, 1), self.stratum) + \
+            "%-30s Poll: %lf (%d)\n" % (hexdump(self.poll, 1), 2 ** (-self.poll), self.poll) + \
+            "%-30s Precision: %lf (%d)\n" % (hexdump(self.precision, 1), 2 ** (-self.precision), self.precision) + \
+            "%-30s Root delay: %lf\n" % (hexdump(self.root_delay, 4), from_ntp_short_bytes(self.root_delay)) + \
+            "%-30s Root dispersion: %lf\n" % (hexdump(self.root_dispersion, 4), from_ntp_short_bytes(self.root_dispersion)) + \
+            "%-30s Reference ID: %s\n" % (hexdump(self.ref_id), IPv4Address(self.ref_id)) + \
+            "%-30s Reference Timestamp: %s\n" % (hexdump(self.ref_time, 8), utc_to_string(ntp_bytes_to_utc(self.ref_time))) + \
+            "%-30s Origin Timestamp: %s\n" % (hexdump(self.origin, 8), utc_to_string(ntp_bytes_to_utc(self.origin))) + \
+            "%-30s Receive Timestamp: %s\n" % (hexdump(self.receive, 8), utc_to_string(ntp_bytes_to_utc(self.receive))) + \
+            "%-30s Transmit Timestamp: %s\n" % (hexdump(self.transmit, 8), utc_to_string(ntp_bytes_to_utc(self.transmit)))
 
 
 def get_args_parser():
