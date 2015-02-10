@@ -16,9 +16,10 @@ def get_address(address_string):
 
 def recv_all(sock):
     result = b''
-    data = b'123'
-    while select([sock], [], [], 0.25)[0] and len(data) > 0:
+    while select([sock], [], [], 0.25)[0]:
         data = sock.recv(BUFFER_SIZE)
+        if len(data) == 0:
+            break
         result += data
     return result
 
