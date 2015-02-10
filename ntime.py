@@ -1,6 +1,7 @@
 import argparse
 import codecs
 from ipaddress import IPv4Address
+from select import select
 from time import time, strftime, gmtime
 from socket import socket, AF_INET, SOCK_DGRAM
 from struct import pack, unpack
@@ -61,9 +62,9 @@ class Packet(object):
                       origin, receive, transmit)
 
     @classmethod
-    def form_request(cls):
+    def form_request(cls, version=NTP_CURRENT_VERSION):
         current_time = time()
-        return Packet(transmit=utc_to_ntp_bytes(current_time))
+        return Packet(version=version, transmit=utc_to_ntp_bytes(current_time))
 
     def to_binary(self):
         return pack(NTP_HEADER_FORMAT,
@@ -96,6 +97,9 @@ class Packet(object):
 def get_args_parser():
     parser = argparse.ArgumentParser(description="NTP tool")
     parser.add_argument("source", help="Source server address")
+    parser.add_argument("-v", "--version", help="NTP version to be used", default=NTP_CURRENT_VERSION, type=int)
+    parser.add_argument("-t", "--timeout", help="Communication timeout in seconds (default 1)", default=1, type=int)
+    parser.add_argument("-a", "--attempts", help="Maximum communication attempts (default 1)", default=1, type=int)
     return parser
 
 
@@ -106,13 +110,20 @@ def get_address(source):
 
 def get_packet(args):
     address = get_address(args.source)
-    with socket(AF_INET, SOCK_DGRAM) as sock:
-        sock.sendto(Packet.form_request().to_binary(), address)
-        return Packet.from_binary(sock.recvfrom(DEFAULT_BUFFER_SIZE)[0])
+    request = Packet.form_request(version=args.version).to_binary()
+    for attempt in range(1, args.attempts + 1):
+        with socket(AF_INET, SOCK_DGRAM) as sock:
+            sock.sendto(request, address)
+            if select([sock], [], [], args.timeout)[0]:
+                return Packet.from_binary(sock.recvfrom(DEFAULT_BUFFER_SIZE)[0])
+            print("Attempt %d failed" % attempt)
 
 
 if __name__ == "__main__":
     parser = get_args_parser()
     args = parser.parse_args()
     received_packet = get_packet(args)
-    print(received_packet)
+    if received_packet:
+        print(received_packet)
+    else:
+        print("Failed to receive packet")
