@@ -1,5 +1,4 @@
 import argparse
-import codecs
 from ipaddress import IPv4Address
 from select import select
 from time import time, strftime, gmtime
