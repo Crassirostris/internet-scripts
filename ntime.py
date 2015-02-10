@@ -100,6 +100,7 @@ def get_args_parser():
     parser.add_argument("-v", "--version", help="NTP version to be used", default=NTP_CURRENT_VERSION, type=int)
     parser.add_argument("-t", "--timeout", help="Communication timeout in seconds (default 1)", default=1, type=int)
     parser.add_argument("-a", "--attempts", help="Maximum communication attempts (default 1)", default=1, type=int)
+    parser.add_argument("-f", "--file", help="Use source as filename of NTP packet dump", action='store_true')
     return parser
 
 
@@ -108,22 +109,25 @@ def get_address(source):
     return chunks[0], int(chunks[1]) if len(chunks) > 1 else NTP_PORT
 
 
-def get_packet(args):
+def get_raw_packet(args):
+    if args.file:
+        with open(args.source, "rb") as file:
+            return file.read()
     address = get_address(args.source)
     request = Packet.form_request(version=args.version).to_binary()
     for attempt in range(1, args.attempts + 1):
         with socket(AF_INET, SOCK_DGRAM) as sock:
             sock.sendto(request, address)
             if select([sock], [], [], args.timeout)[0]:
-                return Packet.from_binary(sock.recvfrom(DEFAULT_BUFFER_SIZE)[0])
+                return sock.recvfrom(DEFAULT_BUFFER_SIZE)[0]
             print("Attempt %d failed" % attempt)
 
 
 if __name__ == "__main__":
     parser = get_args_parser()
     args = parser.parse_args()
-    received_packet = get_packet(args)
-    if received_packet:
-        print(received_packet)
+    raw_packet = get_raw_packet(args)
+    if raw_packet:
+        print(Packet.from_binary(raw_packet))
     else:
         print("Failed to receive packet")
