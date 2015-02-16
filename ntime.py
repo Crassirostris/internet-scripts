@@ -18,6 +18,20 @@ NTP_HEADER_FORMAT = ">BBBBII4sQQQQ"
 NTP_HEADER_LENGTH = 48
 NTP_UTC_OFFSET = 2208988800
 
+LEAP_STRING_VALUE = ["No warning",
+               "Last minute of the day has 61 seconds",
+               "Last minute of the day has 59 seconds",
+               "Unknown (clock unsynchronized)"]
+
+MODE_STRING_VALUE = ["Reserved",
+               "Symmetric active",
+               "Symmetric passive",
+               "Client",
+               "Server",
+               "Broadcast",
+               "NTP control message",
+               "Reserved for private use"]
+
 
 def utc_to_ntp_bytes(time):
     return int((Decimal(time) + NTP_UTC_OFFSET) * (2 ** 32))
@@ -181,9 +195,9 @@ if __name__ == "__main__":
         packet = Packet.from_binary(raw_packet)
         print(hexdump((
             (1,
-                ((2, 'Leap', packet.leap, packet.leap),
+                ((2, 'Leap', packet.leap, LEAP_STRING_VALUE[packet.leap]),
                  (3, 'Version', packet.version, packet.version),
-                 (3, 'Mode', packet.mode, packet.mode))),
+                 (3, 'Mode', packet.mode, MODE_STRING_VALUE[packet.mode]))),
             (1, 'Stratum', packet.stratum, packet.stratum),
             (1, 'Poll', packet.poll_binary, packet.poll),
             (1, 'Precision', packet.precision_binary, packet.precision),
