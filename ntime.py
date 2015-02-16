@@ -160,6 +160,7 @@ def get_args_parser():
     parser.add_argument("-a", "--attempts", help="Maximum communication attempts (default 1)", default=1, type=int)
     parser.add_argument("-f", "--file", help="Use source as filename of NTP packet dump", action='store_true')
     parser.add_argument("-d", "--no-debug", help="Do not show debug info", action='store_false', default=True)
+    parser.add_argument("-u", "--show-utc", help="Show UTC interpretation of time", action='store_true')
     return parser
 
 
@@ -187,7 +188,11 @@ def get_raw_packet(args):
         debug(args, "Attempt %d failed" % attempt)
 
 
-def get_packet_hexdump(packet):
+def get_time_string(time, show_utc):
+    return str(time) + (' [%s]' % utc_to_string(max(time - NTP_UTC_OFFSET, 0)) if show_utc else '')
+
+
+def get_packet_hexdump(packet, show_utc):
     return hexdump((
         (1,
          ((2, 'Leap', packet.leap, LEAP_STRING_VALUE[packet.leap]),
@@ -199,10 +204,10 @@ def get_packet_hexdump(packet):
         (4, 'Root delay', packet.root_delay_binary, packet.root_delay),
         (4, 'Root dispersion', packet.root_dispersion_binary, packet.root_dispersion),
         (4, 'Reference ID', packet.ref_id_binary, packet.ref_id),
-        (8, 'Reference timestamp', packet.ref_time_binary, packet.ref_time),
-        (8, 'Origin timestamp', packet.origin_binary, packet.origin),
-        (8, 'Receive timestamp', packet.receive_binary, packet.receive),
-        (8, 'Transmit timestamp', packet.transmit_binary, packet.transmit)
+        (8, 'Reference timestamp', packet.ref_time_binary, get_time_string(packet.ref_time, show_utc)),
+        (8, 'Origin timestamp', packet.origin_binary, get_time_string(packet.origin, show_utc)),
+        (8, 'Receive timestamp', packet.receive_binary, get_time_string(packet.receive, show_utc)),
+        (8, 'Transmit timestamp', packet.transmit_binary, get_time_string(packet.transmit, show_utc))
     ))
 
 
@@ -218,7 +223,7 @@ if __name__ == "__main__":
     raw_packet = get_raw_packet(args)
     if raw_packet:
         packet = Packet.from_binary(raw_packet)
-        print(get_packet_hexdump(packet))
+        print(get_packet_hexdump(packet, args.show_utc))
         print('Local clock offset: %lf ms' % (get_clock_offset(packet) * 1000))
 
     else:
