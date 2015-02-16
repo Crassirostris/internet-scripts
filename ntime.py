@@ -187,27 +187,39 @@ def get_raw_packet(args):
         debug(args, "Attempt %d failed" % attempt)
 
 
+def get_packet_hexdump(packet):
+    return hexdump((
+        (1,
+         ((2, 'Leap', packet.leap, LEAP_STRING_VALUE[packet.leap]),
+          (3, 'Version', packet.version, packet.version),
+          (3, 'Mode', packet.mode, MODE_STRING_VALUE[packet.mode]))),
+        (1, 'Stratum', packet.stratum, packet.stratum),
+        (1, 'Poll', packet.poll_binary, packet.poll),
+        (1, 'Precision', packet.precision_binary, packet.precision),
+        (4, 'Root delay', packet.root_delay_binary, packet.root_delay),
+        (4, 'Root dispersion', packet.root_dispersion_binary, packet.root_dispersion),
+        (4, 'Reference ID', packet.ref_id_binary, packet.ref_id),
+        (8, 'Reference timestamp', packet.ref_time_binary, packet.ref_time),
+        (8, 'Origin timestamp', packet.origin_binary, packet.origin),
+        (8, 'Receive timestamp', packet.receive_binary, packet.receive),
+        (8, 'Transmit timestamp', packet.transmit_binary, packet.transmit)
+    ))
+
+
+def get_clock_offset(packet):
+    current_ntp_time = time() + NTP_UTC_OFFSET
+    trip_delay = (packet.receive - packet.origin) / 2
+    return Decimal(current_ntp_time) - packet.transmit - trip_delay
+
+
 if __name__ == "__main__":
     parser = get_args_parser()
     args = parser.parse_args()
     raw_packet = get_raw_packet(args)
     if raw_packet:
         packet = Packet.from_binary(raw_packet)
-        print(hexdump((
-            (1,
-                ((2, 'Leap', packet.leap, LEAP_STRING_VALUE[packet.leap]),
-                 (3, 'Version', packet.version, packet.version),
-                 (3, 'Mode', packet.mode, MODE_STRING_VALUE[packet.mode]))),
-            (1, 'Stratum', packet.stratum, packet.stratum),
-            (1, 'Poll', packet.poll_binary, packet.poll),
-            (1, 'Precision', packet.precision_binary, packet.precision),
-            (4, 'Root delay', packet.root_delay_binary, packet.root_delay),
-            (4, 'Root dispersion', packet.root_dispersion_binary, packet.root_dispersion),
-            (4, 'Reference ID', packet.ref_id_binary, packet.ref_id),
-            (8, 'Reference timestamp', packet.ref_time_binary, packet.ref_time),
-            (8, 'Origin timestamp', packet.origin_binary, packet.origin),
-            (8, 'Receive timestamp', packet.receive_binary, packet.receive),
-            (8, 'Transmit timestamp', packet.transmit_binary, packet.transmit)
-        )))
+        print(get_packet_hexdump(packet))
+        print('Local clock offset: %lf ms' % (get_clock_offset(packet) * 1000))
+
     else:
         debug(args, "Failed to receive packet")
