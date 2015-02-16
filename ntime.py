@@ -178,13 +178,16 @@ def get_raw_packet(args):
     if args.file:
         with open(args.source, "rb") as file:
             return file.read()
-    address = get_address(args.source)
     request = Packet.form_request(version=args.version).to_binary()
     for attempt in range(1, args.attempts + 1):
-        with socket(AF_INET, SOCK_DGRAM) as sock:
-            sock.sendto(request, address)
-            if select([sock], [], [], args.timeout)[0]:
-                return sock.recvfrom(DEFAULT_BUFFER_SIZE)[0]
+        try:
+            address = get_address(args.source)
+            with socket(AF_INET, SOCK_DGRAM) as sock:
+                sock.sendto(request, address)
+                if select([sock], [], [], args.timeout)[0]:
+                    return sock.recvfrom(DEFAULT_BUFFER_SIZE)[0]
+        except Exception:
+            pass
         debug(args, "Attempt %d failed" % attempt)
 
 

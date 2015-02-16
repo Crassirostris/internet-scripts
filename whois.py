@@ -48,8 +48,8 @@ if __name__ == "__main__":
     parser.add_argument("target", nargs="?", default=get_local_machine_ip(), help="IP address to resolve")
     parser.add_argument("source", nargs="?", default="%s:%d" % (DEFAULT_WHOIS_PROVIDER, DEFAULT_WHOIS_PORT), help="Source server address")
     args = parser.parse_args()
-    socket_address = get_socket_address(args.source)
     try:
+        socket_address = get_socket_address(args.source)
         target = str(IPv4Address(args.target))
         print(receive_information(target))
     except Exception:
