@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import argparse
 from ipaddress import IPv4Address
 from select import select
