@@ -35,38 +35,79 @@ def from_ntp_short_bytes(value):
     return Decimal(value) / (2 ** 16)
 
 
-def hexdump(value, size=4):
+def from_ntp_time_bytes(value):
+    return Decimal(value) / (2 ** 32)
+
+
+def get_bytes(value, size=None):
     if isinstance(value, bytes):
         return " ".join(["%02X" % e for e in value])
     if isinstance(value, int):
         if size == 1:
-            return hexdump(pack('>B', value))
+            return get_bytes(pack('>B', value))
         if size == 2:
-            return hexdump(pack('>H', value))
+            return get_bytes(pack('>H', value))
         if size == 4:
-            return hexdump(pack('>I', value))
+            return get_bytes(pack('>I', value))
         if size == 8:
-            return hexdump(pack('>Q', value))
+            return get_bytes(pack('>Q', value))
+
+
+def get_bits(size, bits_count, bits_offset, value):
+    bytes = pack('>I', value)
+    binary_string = ''.join(['{0:08b}'.format(byte) for byte in bytes])
+    return '.' * bits_offset + binary_string[-bits_count:] + '.' * (size * 8 - bits_count - bits_offset)
+
+
+def hexdump(series):
+    offset = 0
+    result = ''
+    for row in series:
+        if len(row) == 4:
+            size, title, binary_value, value = row
+            result += '%04X: %-30s %s: %s\n' % (offset, get_bytes(binary_value, size), title, str(value))
+            offset += size
+        else:
+            size, pieces = row
+            local_result = ''
+            bits_offset = 0
+            for piece in pieces:
+                bits_count, title, binary_value, value = piece
+                local_result += '      %-30s %s: %s\n' \
+                                % (get_bits(size, bits_count, bits_offset, binary_value), title, str(value))
+                bits_offset += bits_count
+            result += ('%04X:' % offset) + local_result[5:]
+            offset += size
+    return result
 
 
 class Packet(object):
     def __init__(self, leap=0, version=NTP_CURRENT_VERSION, mode=3, stratum=16, poll=0, precision=0, root_delay=0,
-                 root_dispersion=0, ref_id=b'', ref_time=0, origin=0, receive=0,
+                 root_dispersion=0, ref_id=b'\x00' * 4, ref_time=0, origin=0, receive=0,
                  transmit=0):
         self.leap = leap
         self.version = version
         self.mode = mode
         self.options = (self.leap << 6) | (self.version << 3) | self.mode
         self.stratum = stratum
-        self.poll = poll
-        self.precision = precision
-        self.root_delay = root_delay
-        self.root_dispersion = root_dispersion
-        self.ref_id = ref_id
-        self.ref_time = ref_time
-        self.origin = origin
-        self.receive = receive
-        self.transmit = transmit
+        self.poll_binary = poll
+        self.poll = 2 ** (-poll)
+        self.precision_binary = precision
+        self.precision = 2 ** (-precision)
+        self.root_delay_binary = root_delay
+        self.root_delay = from_ntp_short_bytes(root_delay)
+        self.root_dispersion_binary = root_dispersion
+        self.root_dispersion = from_ntp_short_bytes(root_dispersion)
+        self.ref_id_binary = ref_id
+        self.ref_id = str(IPv4Address(ref_id))
+        self.ref_time_binary = ref_time
+        self.ref_time = from_ntp_time_bytes(ref_time)
+        self.origin_binary = origin
+        self.origin = from_ntp_time_bytes(origin)
+        self.receive_binary = receive
+        self.receive = from_ntp_time_bytes(receive)
+        self.transmit_binary = transmit
+        self.transmit = from_ntp_time_bytes(transmit)
 
     @classmethod
     def from_binary(cls, data):
@@ -85,30 +126,16 @@ class Packet(object):
     def to_binary(self):
         return pack(NTP_HEADER_FORMAT,
                     self.options,
-                    self.stratum, self.poll, self.precision,
-                    self.root_delay,
-                    self.root_dispersion,
-                    self.ref_id,
-                    self.ref_time,
-                    self.origin,
-                    self.receive,
-                    self.transmit)
-
-    def __str__(self):
-        return \
-            "%-30s Version: %d\n" % (hexdump(self.options, 1), self.version) + \
-            "%-30s Leap: %d\n" % ("", self.leap) + \
-            "%-30s Mode: %d\n" % ("", self.mode) + \
-            "%-30s Stratum: %d\n" % (hexdump(self.stratum, 1), self.stratum) + \
-            "%-30s Poll: %lf (%d)\n" % (hexdump(self.poll, 1), 2 ** (-self.poll), self.poll) + \
-            "%-30s Precision: %lf (%d)\n" % (hexdump(self.precision, 1), 2 ** (-self.precision), self.precision) + \
-            "%-30s Root delay: %lf\n" % (hexdump(self.root_delay, 4), from_ntp_short_bytes(self.root_delay)) + \
-            "%-30s Root dispersion: %lf\n" % (hexdump(self.root_dispersion, 4), from_ntp_short_bytes(self.root_dispersion)) + \
-            "%-30s Reference ID: %s\n" % (hexdump(self.ref_id), IPv4Address(self.ref_id)) + \
-            "%-30s Reference Timestamp: %s\n" % (hexdump(self.ref_time, 8), utc_to_string(ntp_bytes_to_utc(self.ref_time))) + \
-            "%-30s Origin Timestamp: %s\n" % (hexdump(self.origin, 8), utc_to_string(ntp_bytes_to_utc(self.origin))) + \
-            "%-30s Receive Timestamp: %s\n" % (hexdump(self.receive, 8), utc_to_string(ntp_bytes_to_utc(self.receive))) + \
-            "%-30s Transmit Timestamp: %s\n" % (hexdump(self.transmit, 8), utc_to_string(ntp_bytes_to_utc(self.transmit)))
+                    self.stratum,
+                    self.poll_binary,
+                    self.precision_binary,
+                    self.root_delay_binary,
+                    self.root_dispersion_binary,
+                    self.ref_id_binary,
+                    self.ref_time_binary,
+                    self.origin_binary,
+                    self.receive_binary,
+                    self.transmit_binary)
 
 
 def get_args_parser():
@@ -151,6 +178,22 @@ if __name__ == "__main__":
     args = parser.parse_args()
     raw_packet = get_raw_packet(args)
     if raw_packet:
-        print(Packet.from_binary(raw_packet))
+        packet = Packet.from_binary(raw_packet)
+        print(hexdump((
+            (1,
+                ((2, 'Leap', packet.leap, packet.leap),
+                 (3, 'Version', packet.version, packet.version),
+                 (3, 'Mode', packet.mode, packet.mode))),
+            (1, 'Stratum', packet.stratum, packet.stratum),
+            (1, 'Poll', packet.poll_binary, packet.poll),
+            (1, 'Precision', packet.precision_binary, packet.precision),
+            (4, 'Root delay', packet.root_delay_binary, packet.root_delay),
+            (4, 'Root dispersion', packet.root_dispersion_binary, packet.root_dispersion),
+            (4, 'Reference ID', packet.ref_id_binary, packet.ref_id),
+            (8, 'Reference timestamp', packet.ref_time_binary, packet.ref_time),
+            (8, 'Origin timestamp', packet.origin_binary, packet.origin),
+            (8, 'Receive timestamp', packet.receive_binary, packet.receive),
+            (8, 'Transmit timestamp', packet.transmit_binary, packet.transmit)
+        )))
     else:
         debug(args, "Failed to receive packet")
