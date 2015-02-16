@@ -4,7 +4,7 @@ from select import select
 from socket import socket, AF_INET, SOCK_STREAM
 
 DEFAULT_WHOIS_PORT = 43
-DEFAULT_WOIS_PROVIDER = "whois.ripe.net"
+DEFAULT_WHOIS_PROVIDER = "whois.ripe.net"
 
 BUFFER_SIZE = 4 * 1024
 
@@ -27,7 +27,7 @@ def recv_all(sock):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Whois tool")
     parser.add_argument("address", help="IP address to resolve")
-    parser.add_argument("source", nargs="?", default="%s:%d" % (DEFAULT_WOIS_PROVIDER, DEFAULT_WHOIS_PORT), help="Source server address")
+    parser.add_argument("source", nargs="?", default="%s:%d" % (DEFAULT_WHOIS_PROVIDER, DEFAULT_WHOIS_PORT), help="Source server address")
     args = parser.parse_args()
     address = get_address(args.source)
     with socket(AF_INET, SOCK_STREAM) as sock:
