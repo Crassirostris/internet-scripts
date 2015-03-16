@@ -1,9 +1,7 @@
 #!/usr/bin/python3
 
 import argparse
-import codecs
-from enum import Enum, IntEnum
-import json
+import ipaddress
 import locale
 import random
 from select import select
@@ -24,7 +22,7 @@ def reverse_mapping(mapping):
 DNS_DEFAULT_PORT = 53
 DEFAULT_BUFFER_SIZE = 64 * 1024
 
-TYPES = {'A': 1, 'PTR': 12, 'ANY': 255, '*': 255}
+TYPES = {'A': 1, 'NS': 2, 'CNAME': 5, 'SOA': 6, 'PTR': 12, 'MX': 15, 'AAAA':28, 'ANY': 255, '*': 255}
 CLASSES = {'IN': 1, 'ANY': 255, '*': 255}
 OPCODES = {'QUERY': 0, 'IQUERY': 1, 'STATUS': 2}
 RCODES = {'No error': 0, 'Format error': 1, 'Server failure': 2, 'Name Error': 3, 'Not Implemented': 4, 'Refused': 5}
@@ -62,10 +60,21 @@ def serialize_domain(domain):
 
 
 def decode_rdata(data, offset, length, dns_type):
-    if dns_type == 'A':
-        return ".".join([str(octet) for octet in unpack("BBBB", data[offset:offset + length])])
-    if dns_type == 'PTR':
+    if dns_type in ['A']:
+        return str(ipaddress.IPv4Address(data[offset:offset + length]))
+    if dns_type in ['AAAA']:
+        return str(ipaddress.IPv6Address(data[offset:offset + length]))
+    if dns_type in ['PTR', 'NS', 'CNAME']:
         return deserialize_domain(data, offset)[0]
+    if dns_type in ['MX']:
+        return [('Preference', unpack(">H", data[offset:offset + 2])[0]),
+                ('Exchange', deserialize_domain(data, offset + 2)[0])]
+    if dns_type == 'SOA':
+        mname, offset = deserialize_domain(data, offset)
+        rname, offset = deserialize_domain(data, offset)
+        serial, refresh, retry, expire, minimum = unpack(">5I", data[offset:offset + 20])
+        return [('MNAME', mname), ('RNAME', rname), ('SERIAL', serial), ('REFRESH', refresh), ('RETRY', retry),
+            ('EXPIRE', expire), ('MINIMUM', minimum)]
     return data[offset:offset + length]
 
 
