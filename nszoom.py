@@ -267,6 +267,7 @@ def get_args_parser():
     parser.add_argument("-v", "--verbose", help="Show verbose packet structure", action="store_true", default=False)
     parser.add_argument("--dns-type", help="Query server with this DNS type", type=dns_type_handler, default='A')
     parser.add_argument("--dns-class", help="Query server with this DNS type", type=dns_class_handler, default='IN')
+    parser.add_argument("-r", "--no-recursion", help="Disable recursion", action="store_true", default=False)
     return parser
 
 
@@ -305,7 +306,7 @@ def stringify_rr_short(rr):
 if __name__ == "__main__":
     parser = get_args_parser()
     args = parser.parse_args()
-    request = Packet.form_request(args.target, dns_type=args.dns_type, dns_class=args.dns_class)
+    request = Packet.form_request(args.target, dns_type=args.dns_type, dns_class=args.dns_class, recursion=not args.no_recursion)
     raw_packet = get_raw_response(args, request.serialize())
     if raw_packet:
         try:
