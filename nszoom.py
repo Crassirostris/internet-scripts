@@ -69,11 +69,7 @@ def decode_rdata(data, offset, length, dns_type):
 
 
 def encode_rdata(rdata, dns_type):
-    if dns_type == 'A':
-        return b''.join([pack("B", int(octet)) for octet in rdata.split('.')])
-    if dns_type == 'PTR':
-        return serialize_domain(rdata)
-    return rdata
+    raise NotImplementedError('Should not have used that')
 
 
 def get_domain_name(target):
