@@ -35,6 +35,7 @@ def deserialize_enum(mapping, value):
     for k, v in mapping.items():
         if v == value:
             return k
+    return 'Unknown'
 
 
 def deserialize_domain(data, offset):
@@ -95,8 +96,8 @@ class QuestionEntry:
 
     def to_plain_object(self):
         return [("Domain", self.domain),
-                ("TYPE", deserialize_enum(TYPES, self.dns_type)),
-                ("CLASS", deserialize_enum(CLASSES, self.dns_class))]
+                ("TYPE", "%s (%d)" % (deserialize_enum(TYPES, self.dns_type), self.dns_type)),
+                ("CLASS", "%s (%d)" % (deserialize_enum(CLASSES, self.dns_class), self.dns_class))]
 
 
 class ResourceRecord:
@@ -122,8 +123,8 @@ class ResourceRecord:
 
     def to_plain_object(self):
         return [("Domain", self.domain),
-                ("TYPE", deserialize_enum(TYPES, self.dns_type)),
-                ("CLASS", deserialize_enum(CLASSES, self.dns_class)),
+                ("TYPE", "%s (%d)" % (deserialize_enum(TYPES, self.dns_type), self.dns_type)),
+                ("CLASS", "%s (%d)" % (deserialize_enum(CLASSES, self.dns_class), self.dns_class)),
                 ("TTL", self.ttl),
                 ("RDLENGTH", self.rdlength),
                 ("RDATA", self.rdata)]
