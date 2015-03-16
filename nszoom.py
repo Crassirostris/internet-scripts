@@ -238,12 +238,26 @@ def get_default_dns_servers():
         return list(servers)
 
 
+def dns_type_handler(dns_type):
+    if not dns_type in TYPES:
+        raise argparse.ArgumentTypeError("Unknown DNS type '%s'" % dns_type)
+    return dns_type
+
+
+def dns_class_handler(dns_class):
+    if not dns_class in CLASSES:
+        raise argparse.ArgumentTypeError("Unknown DNS class '%s'" % dns_class)
+    return dns_class
+
+
 def get_args_parser():
     parser = argparse.ArgumentParser(description="NTP tool")
     parser.add_argument("target", help="Domain name, IPv4 or IPv6 to be resolved")
     parser.add_argument("server", nargs="*", help="Domain servers to use", default=get_default_dns_servers())
     parser.add_argument("-t", "--timeout", help="Communication timeout in seconds (default 2)", default=2, type=int)
     parser.add_argument("-v", "--verbose", help="Show verbose packet structure", action="store_true", default=False)
+    parser.add_argument("--dns-type", help="Query server with this DNS type", type=dns_type_handler, default='A')
+    parser.add_argument("--dns-class", help="Query server with this DNS type", type=dns_class_handler, default='IN')
     return parser
 
 
@@ -277,7 +291,7 @@ def stringify_plain_object(obj, indent=0):
 if __name__ == "__main__":
     parser = get_args_parser()
     args = parser.parse_args()
-    request = Packet.form_request(args.target)
+    request = Packet.form_request(args.target, dns_type=args.dns_type, dns_class=args.dns_class)
     raw_packet = get_raw_response(args, request.serialize())
     if raw_packet:
         try:
