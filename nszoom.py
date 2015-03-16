@@ -45,7 +45,8 @@ def deserialize_domain(data, offset):
         length = data[offset]
         offset += 1
         if length & 0xC0 == 0xC0:
-            offset_to_return = offset + 1
+            if not shortened:
+                offset_to_return = offset + 1
             offset = ((length & (~0xC0)) << 8) + data[offset]
             shortened = True
         elif length & 0xC0 == 0 and length > 0:
