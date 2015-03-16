@@ -288,6 +288,11 @@ def stringify_plain_object(obj, indent=0):
     return result
 
 
+def stringify_rr_short(rr):
+    return "%s %s %s %s %s %s" % (rr.domain, deserialize_enum(TYPES, rr.dns_type),
+                                  deserialize_enum(CLASSES, rr.dns_class),
+                                  rr.ttl, rr.rdlength, rr.rdata)
+
 if __name__ == "__main__":
     parser = get_args_parser()
     args = parser.parse_args()
@@ -299,9 +304,13 @@ if __name__ == "__main__":
             if args.verbose:
                 print(stringify_plain_object(response.to_plain_object()))
             for rr in response.answers:
-                print("%s %s %s %s %s %s" %
-                      (rr.domain, deserialize_enum(TYPES, rr.dns_type), deserialize_enum(CLASSES, rr.dns_class),
-                       rr.ttl, rr.rdlength, rr.rdata))
+                print(stringify_rr_short(rr))
+            if len(response.answers) == 0 and len(response.authority) > 0:
+                print("No answer. Set recursive or use authority:")
+                for rr in response.authority:
+                    print(stringify_rr_short(rr))
+            if len(response.answers) == 0 and len(response.authority) == 0:
+                print("No answer not authority. Something wrong is going on here")
         except Exception:
             print('Failed to parse response')
     else:
